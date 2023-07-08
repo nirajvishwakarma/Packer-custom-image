@@ -1,0 +1,9 @@
+---
+- name: Provision instance
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Install package
+      apt:
+        name: nginx
+        state: present
