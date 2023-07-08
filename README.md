@@ -1,5 +1,5 @@
 # Packer-custom-image
-Packer Script to create custom Image using ansible 
+Packer Script to create custom Image using ansible  
 
 # Install Packer
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
