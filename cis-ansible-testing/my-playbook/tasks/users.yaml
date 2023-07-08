@@ -1,0 +1,38 @@
+---
+- name: Install pip on Ubuntu 22
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+
+  vars:
+    users_to_remove:
+      - games
+      - gnats
+      - irc
+      - list
+      - news
+      - sync
+      - uucp
+
+  tasks:
+    - name: Remove users from sudoers
+      lineinfile:
+        dest: /etc/sudoers
+        state: absent
+        regexp: '^{{ item }}'
+      loop: "{{ users_to_remove }}"
+      become: true
+
+    - name: Remove users' home directories
+      file:
+        path: "/home/{{ item }}"
+        state: absent
+      loop: "{{ users_to_remove }}"
+      become: true
+
+    - name: Remove users from the system
+      user:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ users_to_remove }}"
+      become: true

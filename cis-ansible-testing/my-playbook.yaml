@@ -1,0 +1,214 @@
+####################cron.yaml####################################
+---
+- name: Ensure Cron Logging is Enabled
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Check if cron logging is enabled
+      command: grep -q '^cron\.\*' /etc/rsyslog.d/50-default.conf
+      register: cron_logging_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Enable cron logging
+      lineinfile:
+        path: /etc/rsyslog.d/50-default.conf
+        line: 'cron.* /var/log/cron.log'
+        insertafter: EOF
+      when: cron_logging_enabled.rc != 0
+      notify:
+        - restart rsyslog
+
+  handlers:
+    - name: restart rsyslog
+      service:
+        name: rsyslog
+        state: restarted
+
+#########################password.yaml###################################### 
+---
+- name: Ensure minclass is set in /etc/security/pwquality.conf
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Check if pwquality.conf exists
+      stat:
+        path: /etc/security/pwquality.conf
+      register: pwquality_conf_stat
+
+    - name: Create pwquality.conf if not present
+      copy:
+        content: |
+          minclass = 3
+        dest: /etc/security/pwquality.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: not pwquality_conf_stat.stat.exists
+
+    - name: Update pwquality.conf if minclass is not set
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regex: '^minclass ='
+        line: 'minclass = 3'
+      when: pwquality_conf_stat.stat.exists
+
+
+#########################postfix.yaml #################################
+---
+- name: Ensure nss-resolve is present in /etc/nsswitch.conf
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Check current smtpd_banner value
+      shell: postconf -h smtpd_banner
+      register: postconf_result
+      changed_when: false
+      failed_when: false
+
+    - name: Set smtpd_banner to the desired value
+      command: postconf -e 'smtpd_banner = $myhostname ESMTP'
+      when: "'$myhostname ESMTP' != postconf_result.stdout.strip()"
+
+    - name: Display result
+      debug:
+        msg: "smtpd_banner is {{ 'set correctly' if ('$myhostname ESMTP' == postconf_result.stdout.strip()) else 'not set correctly' }}"
+
+
+
+##########################################psad.yaml 
+---
+- name: Set OpenSSH ClientAliveCountMax
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Install psad package
+      apt:
+        name: psad
+        state: present
+      become: true
+
+#################################### cat suid.yaml 
+---
+- name: Ensure SUID/GUID is not set for specific commands
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Check SUID/GUID permissions for commands
+      shell: >
+        find /usr/bin -type f \( -name 'write' -o -name 'wall' -o -name 'umount' -o -name 'su' -o -name 'pkexec' -o -name 'newgrp' -o -name 'mount' -o -name 'crontab' -o -name 'chsh' -o -name 'chfn' -o -name 'chage' \) \( -perm -4000 -o -perm -2000 \) -exec ls -l {} +
+      register: suid_guid_commands
+      changed_when: false
+      failed_when: false
+
+    - name: Output SUID/GUID commands
+      debug:
+        msg: "{{ suid_guid_commands.stdout_lines }}"
+      when: suid_guid_commands.stdout_lines | length > 0
+
+    - name: Remove SUID/GUID permissions from commands
+      shell: >
+        find /usr/bin -type f \( -name 'write' -o -name 'wall' -o -name 'umount' -o -name 'su' -o -name 'pkexec' -o -name 'newgrp' -o -name 'mount' -o -name 'crontab' -o -name 'chsh' -o -name 'chfn' -o -name 'chage' \) \( -perm -4000 -o -perm -2000 \) -exec chmod -s {} +
+      when: suid_guid_commands.stdout_lines | length > 0
+        
+####################################################ufw.yaml ##########################
+---
+- name: Verify Configuration
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Check if UFW uses /etc/sysctl.conf
+      lineinfile:
+        path: /etc/default/ufw
+        regexp: '^#*IPT_SYSCTL='
+        line: 'IPT_SYSCTL=/etc/sysctl.conf'
+        backup: yes
+      register: ufw_sysctl_changed
+      changed_when: ufw_sysctl_changed.changed
+
+    - name: Restart UFW service
+      service:
+        name: ufw
+        state: restarted
+      when: ufw_sysctl_changed.changed
+
+######################################umask.yaml ##############################
+---
+- name: Verify Configuration
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Add umask to /etc/profile
+      lineinfile:
+        dest: /etc/profile
+        line: "umask 077"
+        insertbefore: BOF
+
+    - name: Add umask to /etc/bash.bashrc
+      lineinfile:
+        dest: /etc/bash.bashrc
+        line: "umask 077"
+        insertafter: '^# User specific aliases and functions'
+    
+    - name: Create autologout.sh file
+      file:
+        path: /etc/profile.d/autologout.sh
+        state: touch
+    - name: Add TMOUT to autologout.sh
+      lineinfile:
+        dest: /etc/profile.d/autologout.sh
+        line: "TMOUT=600"
+
+    - name: Add readonly TMOUT to autologout.sh
+      lineinfile:
+        dest: /etc/profile.d/autologout.sh
+        line: "readonly TMOUT"
+
+################################################users.yaml ##################################
+---
+- name: Install pip on Ubuntu 22
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+
+  vars:
+    users_to_remove:
+      - games
+      - gnats
+      - irc
+      - list
+      - news
+      - sync
+      - uucp
+
+  tasks:
+    - name: Remove users from sudoers
+      lineinfile:
+        dest: /etc/sudoers
+        state: absent
+        regexp: '^{{ item }}'
+      loop: "{{ users_to_remove }}"
+      become: true
+
+    - name: Remove users' home directories
+      file:
+        path: "/home/{{ item }}"
+        state: absent
+      loop: "{{ users_to_remove }}"
+      become: true
+
+    - name: Remove users from the system
+      user:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ users_to_remove }}"
+      become: true
+
+###################################################################################

@@ -1,0 +1,21 @@
+---
+- name: Verify Configuration
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Check if UFW uses /etc/sysctl.conf
+      lineinfile:
+        path: /etc/default/ufw
+        regexp: '^#*IPT_SYSCTL='
+        line: 'IPT_SYSCTL=/etc/sysctl.conf'
+        backup: yes
+      register: ufw_sysctl_changed
+      changed_when: ufw_sysctl_changed.changed
+
+    - name: Restart UFW service
+      service:
+        name: ufw
+        state: restarted
+      when: ufw_sysctl_changed.changed
+

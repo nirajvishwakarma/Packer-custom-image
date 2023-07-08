@@ -1,0 +1,31 @@
+---
+- name: Verify Configuration
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Add umask to /etc/profile
+      lineinfile:
+        dest: /etc/profile
+        line: "umask 077"
+        insertbefore: BOF
+
+    - name: Add umask to /etc/bash.bashrc
+      lineinfile:
+        dest: /etc/bash.bashrc
+        line: "umask 077"
+        insertafter: '^# User specific aliases and functions'
+    
+    - name: Create autologout.sh file
+      file:
+        path: /etc/profile.d/autologout.sh
+        state: touch
+    - name: Add TMOUT to autologout.sh
+      lineinfile:
+        dest: /etc/profile.d/autologout.sh
+        line: "TMOUT=600"
+
+    - name: Add readonly TMOUT to autologout.sh
+      lineinfile:
+        dest: /etc/profile.d/autologout.sh
+        line: "readonly TMOUT"

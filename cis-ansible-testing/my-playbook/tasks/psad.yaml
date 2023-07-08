@@ -1,0 +1,11 @@
+---
+- name: Set OpenSSH ClientAliveCountMax
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Install psad package
+      apt:
+        name: psad
+        state: present
+      become: true

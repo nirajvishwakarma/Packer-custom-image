@@ -1,0 +1,22 @@
+---
+- name: Ensure SUID/GUID is not set for specific commands
+  hosts: localhost
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Check SUID/GUID permissions for commands
+      shell: >
+        find /usr/bin -type f \( -name 'write' -o -name 'wall' -o -name 'umount' -o -name 'su' -o -name 'pkexec' -o -name 'newgrp' -o -name 'mount' -o -name 'crontab' -o -name 'chsh' -o -name 'chfn' -o -name 'chage' \) \( -perm -4000 -o -perm -2000 \) -exec ls -l {} +
+      register: suid_guid_commands
+      changed_when: false
+      failed_when: false
+
+    - name: Output SUID/GUID commands
+      debug:
+        msg: "{{ suid_guid_commands.stdout_lines }}"
+      when: suid_guid_commands.stdout_lines | length > 0
+
+    - name: Remove SUID/GUID permissions from commands
+      shell: >
+        find /usr/bin -type f \( -name 'write' -o -name 'wall' -o -name 'umount' -o -name 'su' -o -name 'pkexec' -o -name 'newgrp' -o -name 'mount' -o -name 'crontab' -o -name 'chsh' -o -name 'chfn' -o -name 'chage' \) \( -perm -4000 -o -perm -2000 \) -exec chmod -s {} +
+      when: suid_guid_commands.stdout_lines | length > 0
