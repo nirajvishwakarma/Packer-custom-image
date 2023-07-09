@@ -10,12 +10,6 @@ sudo apt update && sudo apt install packer
 
 link : https://developer.hashicorp.com/packer/downloads
 
-# Install Ansible
-sudo apt install software-properties-common
-
-sudo add-apt-repository --yes --update ppa:ansible/ansible\
-
-sudo apt install ansible -y
 
 # Run the script
 packer build template.json
