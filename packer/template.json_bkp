@@ -4,16 +4,16 @@
       "type": "googlecompute",
       "project_id": "heroic-arbor-378810",
       "account_file": "/home/nirajdevops365/heroic-arbor-378810-3e6f402c051b.json",
-      "source_image_family": "ubuntu-2204-lts",
-      "image_name": "cis-custom-image3",
+      "source_image_family": "ubuntu-2004-lts",
+      "image_name": "cis-custom-image2",
       "zone": "asia-southeast1-b",
       "ssh_username": "ubuntu"
     }
   ],
   "provisioners": [
     {
-      "type": "shell",
-      "script": "deploy.sh"
+      "type": "ansible",
+      "playbook_file": "/home/nirajdevops365/Packer-custom-image/cis-ansible-testing/test.yml"
     }
   ]
 }
